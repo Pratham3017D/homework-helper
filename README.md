@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Homework Helper for Parents
 
-## Getting Started
+> Understand the topic in 2 minutes. Help your child in 10.
 
-First, run the development server:
+A mobile-first AI educational assistant designed to help parents understand and explain homework topics for children in Grades 1–8.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Status
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Planning / documentation complete. Implementation not started.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Core MVP
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Topic + grade + subject input
+- Parent briefing
+- Teaching script
+- Common mistakes
+- Five practice problems
+- Hints
+- Answers + solution steps
+- Structured AI output
+- Zod validation
+- Mathematical verification for supported problem types
+- Print-friendly worksheet
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+See `/docs` for:
+- PRD
+- Technical specification
+- Project structure
+- AI schema/prompts
+- Database schema
+- API specification
+- UI/UX specification
+- Test plan
+- Roadmap
+- Development rules
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Development Philosophy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build incrementally. Understand the code. Validate AI output. Keep the MVP small enough to finish and polished enough to demonstrate.
