@@ -136,7 +136,7 @@ CRITICAL EDUCATIONAL & MATHEMATICAL PRESERVATION RULES:
 4. TRANSLATE EXPLANATIONS: Translate the questions, hints, answers, and solution steps so the parent and child can read them comfortably in ${targetName}, but ensure the mathematical meaning, logic, and numbers remain 100% identical.
 5. NATURAL PARENT TONE: For Hindi, use natural, encouraging, clear Hindi (Devanagari script) suitable for Grade ${grade} parents and students. Keep common mathematical terms understandable (e.g., 'प्रतिशत (Percentage)', 'भिन्न (Fraction)', 'गुणनफल').
 6. TEACHING NOTES: Translate the notes object (overview, key_definitions, core_rules, real_world_examples, parent_cheat_sheet), steps, common_mistakes, and kid_script thoroughly.
-7. STRICT JSON OUTPUT: Return ONLY a single valid JSON object matching the input structure exactly. No conversational text or markdown code fences outside the JSON.`;
+7. STRICT JSON OUTPUT: Return ONLY a single valid JSON object matching the input structure exactly. Do NOT use markdown list bullets ('-', '*', '•') or numbering inside JSON arrays. All array elements must be valid JSON strings in double quotes. No conversational text or markdown code fences outside the JSON.`;
 
     const userPrompt = `Translate this Grade ${grade} ${subject} lesson into ${targetName}.
 Keep all numbers, formulas, question difficulty levels, and mathematical solutions strictly preserved:

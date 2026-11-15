@@ -13,13 +13,12 @@ export interface AIContentGenerationResult {
 export function cleanJsonString(raw: string): string {
   let cleaned = raw.trim();
 
-  // Strip markdown code block fences if present
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "");
-    cleaned = cleaned.replace(/\n?```\s*$/, "");
-  }
+  // 1. Remove markdown code block fences anywhere in the string
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "");
+  cleaned = cleaned.replace(/\n?```\s*$/i, "");
+  cleaned = cleaned.replace(/```(?:json)?/gi, "").replace(/```/g, "");
 
-  // Find outermost opening and closing braces
+  // 2. Find outermost opening and closing braces
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
 
@@ -27,7 +26,30 @@ export function cleanJsonString(raw: string): string {
     cleaned = cleaned.slice(firstBrace, lastBrace + 1);
   }
 
-  // Remove trailing commas before closing braces/brackets
+  // 3. Fix markdown bullets or numbered bullets before quoted array items:
+  // e.g. [ \n - "item" -> [ \n "item"
+  // e.g. , \n * "item" -> , \n "item"
+  // e.g. , \n 1. "item" -> , \n "item"
+  cleaned = cleaned.replace(/(\[\s*|\,\s*)(?:[-*•]|\d+[.)])\s+(\")/g, "$1$2");
+
+  // Also handle line starts within arrays where bullet is preceded by newline + whitespace
+  cleaned = cleaned.replace(/^(\s*)(?:[-*•]|\d+[.)])\s+(\")/gm, "$1$2");
+
+  // 4. Fix markdown bullets before unquoted text items in arrays:
+  // e.g. [ \n - Step 1: do this, -> [ \n "Step 1: do this",
+  cleaned = cleaned.replace(
+    /(\[\s*|\,\s*)[-*•]\s+([^"\s\[\]\{\}][^,\n\]\}]*)/g,
+    (match, prefix, content) => {
+      const trimmed = content.trim();
+      // If it's a valid standalone number (e.g. -5), preserve it
+      if (!isNaN(Number(trimmed))) {
+        return `${prefix}${trimmed}`;
+      }
+      return `${prefix}"${trimmed.replace(/"/g, '\\"')}"`;
+    }
+  );
+
+  // 5. Remove trailing commas before closing braces/brackets
   cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
 
   return cleaned.trim();

@@ -100,7 +100,8 @@ Rules:
 3. 5 PROGRESSIVE PROBLEMS: "problems" MUST contain exactly 5 items strictly ordered by difficulty: "easy", "easy-medium", "medium", "medium-hard", "challenge".
 4. SCAFFOLDED HINTS: Hints must guide and prompt the child's thinking (e.g. "What do we do first?") without prematurely giving away the numeric answer.
 5. MATHEMATICAL & FACTUAL INTEGRITY: Ensure calculations, formulas, units, and solutions are 100% correct.
-6. LANGUAGE: ALL user-facing fields (notes, definitions, summaries, steps, scripts, and problems) MUST be written in ${languageName}.`;
+6. LANGUAGE: ALL user-facing fields (notes, definitions, summaries, steps, scripts, and problems) MUST be written in ${languageName}.
+7. STRICT JSON SYNTAX: Return ONLY pure, valid JSON. Do NOT use markdown list bullets ('-', '*', '•') or numbering inside JSON arrays. Every array element must be a standard double-quoted JSON string (e.g. ["Step 1", "Step 2"], NEVER [- "Step 1", - "Step 2"]).`;
 
   const userPrompt = `Generate complete parent teaching notes, explanation guide, and 5 practice problems for:
 Topic: ${topic}
