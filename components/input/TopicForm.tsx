@@ -89,6 +89,7 @@ export default function TopicForm({ examples = ["Fractions", "Photosynthesis", "
 
           {error && (
             <div
+              id="topic-error"
               role="alert"
               className="mt-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
@@ -113,6 +114,8 @@ export default function TopicForm({ examples = ["Fractions", "Photosynthesis", "
             id="topic"
             value={topic}
             disabled={isLoading}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? "topic-error" : undefined}
             onChange={(event) => {
               setTopic(event.target.value);
               if (error) setError("");

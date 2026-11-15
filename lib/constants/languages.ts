@@ -13,7 +13,8 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: "kn", name: "Kannada", nativeName: "ಕನ್ನಡ" },
 ];
 
-export type LanguageCode = "en" | "hi" | "ta" | "te" | "ml" | "kn";
+export const SUPPORTED_LANGUAGE_CODES = ["en", "hi", "ta", "te", "ml", "kn"] as const;
+export type LanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
 
 export interface UILabels {
   parentBriefing: string;

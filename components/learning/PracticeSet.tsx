@@ -54,10 +54,12 @@ export default function PracticeSet({
             };
           const showHint = !!openHints[problem.id];
           const showAnswer = !!openAnswers[problem.id];
+          const hintId = `hint-${problem.id}-${index}`;
+          const answerId = `answer-${problem.id}-${index}`;
 
           return (
             <div
-              key={problem.id}
+              key={problem.id || `p-${index}`}
               className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm transition hover:border-zinc-300"
             >
               <div className="flex items-center justify-between mb-3">
@@ -76,12 +78,14 @@ export default function PracticeSet({
                 {problem.question}
               </p>
 
-              {/* Action Buttons */}
+              {/* Action Buttons with ARIA and visible focus states */}
               <div className="mt-4 flex flex-wrap gap-2.5">
                 <button
                   type="button"
+                  aria-expanded={showHint}
+                  aria-controls={hintId}
                   onClick={() => toggleHint(problem.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
                     showHint
                       ? "border-amber-300 bg-amber-50 text-amber-900"
                       : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
@@ -92,8 +96,10 @@ export default function PracticeSet({
 
                 <button
                   type="button"
+                  aria-expanded={showAnswer}
+                  aria-controls={answerId}
                   onClick={() => toggleAnswer(problem.id)}
-                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
                     showAnswer
                       ? "border-emerald-300 bg-emerald-50 text-emerald-900"
                       : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
@@ -105,7 +111,12 @@ export default function PracticeSet({
 
               {/* Hint Box */}
               {showHint && (
-                <div className="mt-3 rounded-2xl border border-amber-200/90 bg-amber-50/70 p-4 text-sm text-amber-900">
+                <div
+                  id={hintId}
+                  role="region"
+                  aria-label={`Hint for question ${index + 1}`}
+                  className="mt-3 rounded-2xl border border-amber-200/90 bg-amber-50/70 p-4 text-sm text-amber-900 animate-fadeIn"
+                >
                   <span className="font-bold block mb-1">
                     {labels.showHint.replace("💡 ", "")}:
                   </span>
@@ -115,7 +126,12 @@ export default function PracticeSet({
 
               {/* Answer & Solution Box */}
               {showAnswer && (
-                <div className="mt-3 rounded-2xl border border-emerald-200/90 bg-emerald-50/70 p-4 text-sm text-emerald-950">
+                <div
+                  id={answerId}
+                  role="region"
+                  aria-label={`Solution for question ${index + 1}`}
+                  className="mt-3 rounded-2xl border border-emerald-200/90 bg-emerald-50/70 p-4 text-sm text-emerald-950 animate-fadeIn"
+                >
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-bold text-emerald-900">{labels.answerLabel}</span>
                     <span className="font-semibold text-zinc-900 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-200">

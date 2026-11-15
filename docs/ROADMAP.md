@@ -1,106 +1,43 @@
-# Homework Helper — Roadmap
+# Homework Helper — Production Roadmap & Milestones
 
-## Phase 0 — Specification
+## ✅ Phase 0 — Architecture & Specification
+- [x] Finalized product requirements (PRD, Tech Spec, UI/UX Spec).
+- [x] Defined structured JSON schema for educational lessons and in-depth notes.
+- [x] Configured TypeScript strict mode and Tailwind CSS design tokens.
 
-Deliverables:
-- finalized architecture;
-- repository;
-- environment setup;
-- README;
-- documentation.
+## ✅ Phase 1 — UI Foundation & Design System
+- [x] Mobile-first responsive layout with clean hierarchy.
+- [x] Interactive topic input, Grade 1–8 selector, and subject selector with presets.
+- [x] Parent Briefing card (30-second summary, intuition, teaching steps).
+- [x] Complete Study & Teaching Notes card (Concept Breakdown, Key Terms, Core Rules, Real-World Analogies, Parent Cheat Sheet).
+- [x] Conversational "Try saying this to your child" script.
+- [x] Common Mistakes to watch out for.
+- [x] 5 progressive practice questions with interactive Hint & Solution drawers.
+- [x] Print-friendly worksheet formatting (`@media print`).
 
-## Phase 1 — Foundation
+## ✅ Phase 2 — AI Orchestration & Reliability
+- [x] Integrated Google Gemini API (`gemini-flash-lite-latest` primary, `gemini-3.5-flash`, `gemini-3.8-flash`).
+- [x] OpenAI-compatible secondary provider fallback.
+- [x] Safe JSON extraction and sanitization (strips markdown fences and trailing commas).
+- [x] Strict Zod response schema validation enforcing 5 ordered-difficulty questions.
+- [x] Bounded retries with exponential backoff for transient errors (429, 503).
+- [x] Zero-downtime offline curriculum fallback when AI is unavailable.
 
-Goal: working UI with fake data.
+## ✅ Phase 3 — Security, Rate Limiting & Verification
+- [x] Max payload limit (16 KB) with HTTP 413 `PAYLOAD_TOO_LARGE`.
+- [x] Malformed JSON protection with HTTP 400 `MALFORMED_JSON`.
+- [x] Input sanitization (ASCII control character stripping, whitespace normalization).
+- [x] Production rate limiting (15 req/min per IP) with in-memory sliding window + Upstash Redis REST adapter.
+- [x] Independent deterministic math verification engine (`safeEvaluate`, fractions, percentages, simple linear equations) without `eval()`.
+- [x] Truthful response metadata (`ai-live` vs `offline-fixture`, accurate `verificationStatus`).
 
-Tasks:
-- Initialize Next.js + TypeScript.
-- Configure Tailwind.
-- Create base layout.
-- Build topic input.
-- Build grade/subject selectors.
-- Build result cards.
-- Add responsive design.
-- Add sample content fixtures.
+## ✅ Phase 4 — Multilingual System
+- [x] Real-time dynamic generation in 6 languages: English, हिन्दी (Hindi), தமிழ் (Tamil), తెలుగు (Telugu), മലയാളം (Malayalam), and ಕನ್ನಡ (Kannada).
+- [x] In-memory translation caching to avoid redundant API queries.
+- [x] Protection against duplicate simultaneous in-flight requests.
+- [x] Graceful error state with inline retry functionality.
 
-Definition of done:
-A user can navigate the complete flow using hardcoded content.
-
-## Phase 2 — Content Engine
-
-Goal: replace fake content with validated AI output.
-
-Tasks:
-- Add server route.
-- Add request schema.
-- Add LLM client.
-- Add structured output.
-- Add Zod response validation.
-- Add error mapping.
-- Add loading states.
-
-Definition of done:
-A real topic can generate a validated learning package.
-
-## Phase 3 — Practice + Verification
-
-Tasks:
-- Practice UI.
-- Hint reveal.
-- Answer reveal.
-- Solution steps.
-- Math verification layer.
-- Verification tests.
-
-Definition of done:
-Supported math content is independently checked before display.
-
-## Phase 4 — Reliability + Polish
-
-Tasks:
-- Cache validated content.
-- Rate limiting.
-- Better error handling.
-- Print stylesheet.
-- Accessibility pass.
-- Unit/integration/E2E tests.
-- Performance review.
-
-## Phase 5 — User Testing + Launch
-
-Tasks:
-- Test with 3–5 parents.
-- Record feedback.
-- Fix usability problems.
-- Deploy to Vercel.
-- Write README.
-- Record demo.
-- Write portfolio case study.
-
-## V2
-
-Only after MVP is stable:
-- photo input;
-- parent-child mode;
-- multilingual support;
-- saved sessions;
-- targeted "stuck" assistance.
-
-## V3 / Future
-
-- progress tracking;
-- weekly reviews;
-- teacher links;
-- advanced curriculum support;
-- additional verification engines;
-- richer personalization.
-
-## Suggested Student Schedule
-
-Do not sacrifice core learning to finish this quickly.
-
-A reasonable rhythm is:
-- 60–90 minutes on project work on focused days;
-- separate time for C++/DSA;
-- weekly refactoring/documentation;
-- commit working milestones rather than giant end-of-month dumps.
+## 🚀 Phase 5 — Future Enhancements
+- [ ] User accounts and bookmarking saved topics (Supabase Auth).
+- [ ] Direct worksheet PDF generation with downloadable answersheet.
+- [ ] Voice explanation playback for parents using Web Speech API.

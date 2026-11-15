@@ -3,6 +3,17 @@ export interface GeminiOptions {
   systemInstruction?: string;
   prompt: string;
   temperature?: number;
+  timeoutMs?: number;
+}
+
+export interface GeminiResult {
+  text: string;
+  model: string;
+  provider: "google-gemini";
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function callGeminiGenerateContent({
@@ -10,7 +21,8 @@ export async function callGeminiGenerateContent({
   systemInstruction,
   prompt,
   temperature = 0.2,
-}: GeminiOptions): Promise<string> {
+  timeoutMs = 15000,
+}: GeminiOptions): Promise<GeminiResult> {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.AI_API_KEY || "").trim();
 
   if (!apiKey) {
@@ -18,11 +30,12 @@ export async function callGeminiGenerateContent({
   }
 
   // Model fallback chain:
-  // 1. gemini-flash-lite-latest (fastest & high availability)
-  // 2. gemini-3.5-flash (high quality flash model)
-  // 3. gemini-3.8-flash (latest flash model)
-  // 4. gemini-flash-latest
-  // 5. gemini-pro-latest
+  // 1. User-configured model
+  // 2. gemini-flash-lite-latest (fastest & high availability)
+  // 3. gemini-3.5-flash (high quality flash model)
+  // 4. gemini-3.8-flash (latest flash model)
+  // 5. gemini-flash-latest (canonical alias)
+  // 6. gemini-pro-latest (pro fallback)
   const candidateModels = [
     model,
     "gemini-flash-lite-latest",
@@ -36,7 +49,6 @@ export async function callGeminiGenerateContent({
   let lastError: Error | null = null;
 
   for (const candidate of uniqueModels) {
-    // 1. Try Native Google Gemini endpoint
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`;
 
     const requestBody: Record<string, unknown> = {
@@ -58,38 +70,71 @@ export async function callGeminiGenerateContent({
       };
     }
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        signal: AbortSignal.timeout(18000),
-        body: JSON.stringify(requestBody),
-      });
+    // Try up to 2 attempts for transient errors (429, 503)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: AbortSignal.timeout(timeoutMs),
+          body: JSON.stringify(requestBody),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if (text) {
-          console.log(`[Gemini Native] Successfully generated content using ${candidate}`);
-          return text;
+          if (text) {
+            return {
+              text,
+              model: candidate,
+              provider: "google-gemini",
+            };
+          }
         }
-      } else {
+
+        // Fatal auth errors - do not continue looping through models
+        if (response.status === 401 || response.status === 403) {
+          const errBody = await response.text();
+          throw new Error(`Gemini Authentication Failed [${response.status}]: Invalid API key. Details: ${errBody}`);
+        }
+
+        // Transient errors: 429 (rate limit) or 503 (high demand)
+        if (response.status === 429 || response.status === 503) {
+          const errorText = await response.text();
+          lastError = new Error(`Gemini transient error [${response.status}]: ${errorText}`);
+          if (attempt === 1) {
+            await delay(600);
+            continue; // retry once with backoff
+          }
+          break; // move to next candidate model
+        }
+
+        // 404 Model Not Found or other 4xx: Move immediately to next model
         const errorText = await response.text();
-        console.warn(
-          `[Gemini Native] Model ${candidate} returned status ${response.status}: ${errorText}`
-        );
         lastError = new Error(`Gemini native [${response.status}]: ${errorText}`);
+        break;
+      } catch (err) {
+        lastError = err as Error;
+
+        // If it was an authentication failure, re-throw immediately
+        if (lastError.message.includes("Gemini Authentication Failed")) {
+          throw lastError;
+        }
+
+        // Network or timeout: backoff on first attempt, then try next candidate
+        if (attempt === 1) {
+          await delay(400);
+          continue;
+        }
+        break;
       }
-    } catch (err) {
-      console.warn(`[Gemini Native] Exception on ${candidate}:`, err);
-      lastError = err as Error;
     }
 
-    // 2. Try Google OpenAI-compatible endpoint as secondary fallback
+    // Secondary fallback: Google OpenAI-compatible chat completions endpoint
     try {
       const openAiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       const openAiRes = await fetch(openAiUrl, {
@@ -98,7 +143,7 @@ export async function callGeminiGenerateContent({
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
         },
-        signal: AbortSignal.timeout(18000),
+        signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
           model: candidate,
           messages: [
@@ -114,14 +159,17 @@ export async function callGeminiGenerateContent({
         const openAiData = await openAiRes.json();
         const openAiText = openAiData.choices?.[0]?.message?.content;
         if (openAiText) {
-          console.log(`[Gemini OpenAI Mode] Successfully generated content using ${candidate}`);
-          return openAiText;
+          return {
+            text: openAiText,
+            model: candidate,
+            provider: "google-gemini",
+          };
         }
       }
-    } catch (err) {
-      console.warn(`[Gemini OpenAI Mode] Exception on ${candidate}:`, err);
+    } catch {
+      // Ignore and continue down the model candidate chain
     }
   }
 
-  throw lastError || new Error("All Gemini models and endpoints failed.");
+  throw lastError || new Error("All Gemini models and endpoints failed to generate content.");
 }

@@ -46,12 +46,21 @@ Rather than simply handing answers to a child, **Homework Helper** empowers the 
 ### 7. 🖨️ Print-Friendly Worksheet
 - Dedicated print layout (`@media print`) that formats practice problems cleanly for paper or PDF export.
 
-### 8. 🤖 Google Gemini AI Engine
-- **Direct Google Gemini Integration**: Uses Google's Gemini models (`gemini-flash-lite-latest`, `gemini-3.5-flash`, etc.) to dynamically generate customized teaching notes, parent briefings, conversational scripts, common mistakes, and 5 progressive problems for **any homework topic**.
-- **Complete In-Depth Notes**: Unlike basic answer keys, the AI generates a full study guide for parents: concept breakdowns, key term definitions, core rules/formulas, real-world analogies, and a quick cheat sheet.
-- **Multilingual AI Output**: Dynamically outputs complete notes and questions in English, Hindi, Tamil, Telugu, Malayalam, or Kannada.
-- **Strict Output Schema**: Enforced by Zod schemas to ensure factual consistency and JSON safety.
-- **Zero-Downtime Fallback**: If an external AI provider experiences rate-limiting or network issues, the system automatically falls back to rich built-in educational content without crashing.
+### 8. 🤖 Resilient Dual-Engine AI Backend
+- **Direct Google Gemini Integration**: Uses Google's Gemini models (`gemini-flash-lite-latest`, `gemini-3.5-flash`, `gemini-3.8-flash`) to dynamically generate customized teaching notes, parent briefings, conversational scripts, common mistakes, and 5 progressive problems for **any homework topic**.
+- **Complete In-Depth Notes**: Generates full study notes for parents: concept breakdowns, key term definitions, core rules/formulas, real-world analogies, and a quick cheat sheet.
+- **Multilingual AI Output**: Dynamically outputs complete notes and questions in English, Hindi, Tamil, Telugu, Malayalam, or Kannada with client-side caching.
+- **Zero-Downtime Fallback**: If an external AI provider experiences rate-limiting or network issues, the system automatically falls back to rich built-in curriculum content.
+
+### 9. 🛡️ API Security & Rate Limiting
+- **Payload Guard**: Enforces 16 KB request body limit (HTTP 413 `PAYLOAD_TOO_LARGE`).
+- **Input Sanitization**: Control characters stripped, whitespace collapsed, topic length and subject verified with Zod 4.
+- **Production Rate Limiting**: 15 requests/minute per client IP via in-memory sliding window with support for Upstash Redis REST.
+
+### 10. 🧮 Independent Mathematics Verification Engine
+- **Deterministic Math Verification**: Independent AST tokenizer and recursive descent parser verifies arithmetic, fractions, percentages, and simple equations without using `eval()`.
+- **Contradiction Detection**: Detects calculation contradictions in AI answers and flags them as `verification_failed`.
+- **Truthful Status**: Content is tagged accurately as `schema_validated`, `verified`, or `verification_failed`—never making false verification claims for non-mathematical subjects.
 
 ---
 
@@ -113,16 +122,27 @@ homework-helper/
 │   │   └── prompts.ts                # Structured educational system and user prompts
 │   ├── constants/
 │   │   └── languages.ts              # Supported language codes & localized UI dictionary
-│   └── fixtures/
-│       ├── sample-content.ts         # Base educational lessons (Fractions, Photosynthesis, Nouns)
-│       └── translations.ts           # Full multilingual translations (Triangles, Fractions, etc.)
+│   ├── fixtures/
+│   │   ├── sample-content.ts         # Base educational lessons (Fractions, Photosynthesis, Nouns)
+│   │   └── translations.ts           # Full multilingual translations (Triangles, Fractions, etc.)
+│   ├── security/
+│   │   └── rate-limit.ts             # Sliding window in-memory & Upstash Redis rate limiter
+│   └── verification/
+│       └── math-verifier.ts          # Deterministic AST math & equation verification engine
 │
 ├── schemas/
 │   ├── content.ts                    # Zod schema for structured lesson content & notes
-│   └── requests.ts                   # Zod schema for input validation
+│   └── requests.ts                   # Zod schema for input sanitization & validation
 │
-├── docs/                             # Original design specs (PRD, Tech Spec, Roadmaps)
-├── .env.example                      # Template for environment variables
+├── tests/                            # Zero-dependency Node 24 native test suite
+│   ├── clean-json.test.mjs           # AI markdown fence & trailing comma tests
+│   ├── content-schema.test.mjs       # 5 progressive problems & difficulty tests
+│   ├── math-verifier.test.mjs        # Deterministic arithmetic & equation tests
+│   ├── rate-limiter.test.mjs         # Sliding window quota & IP extraction tests
+│   └── requests.test.mjs             # Input validation, bounds & sanitization tests
+│
+├── docs/                             # Architecture & engineering specs
+├── .env.example                      # Production template for environment variables
 ├── .env.local                        # Private local API keys (git-ignored)
 └── package.json
 ```
@@ -170,14 +190,17 @@ npm run dev
 Open your browser and navigate to:
 👉 **[http://localhost:3000](http://localhost:3000)**
 
-### 5. Production Build & Linting
-To verify type safety, linting, and build for production:
+### 5. Automated Testing & Verification
+Execute the full unit, schema, math verification, and rate limiter test suite:
 
 ```bash
+# Run all automated test suites (25 tests)
+npm test
+
 # Run ESLint
 npm run lint
 
-# Check TypeScript types
+# Check TypeScript strict typing
 npx tsc --noEmit
 
 # Compile production build

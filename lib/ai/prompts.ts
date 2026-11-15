@@ -1,4 +1,4 @@
-import { ChatMessage } from "./client";
+import type { ChatMessage } from "./client.ts";
 
 export const PROMPT_VERSION = "content-generation-v2";
 

@@ -1,24 +1,34 @@
-import { callGeminiGenerateContent } from "./gemini";
-import { createChatCompletion } from "./client";
-import { buildContentGenerationPrompt } from "./prompts";
-import { GeneratedContent, generatedContentSchema } from "@/schemas/content";
+import { callGeminiGenerateContent } from "./gemini.ts";
+import { createChatCompletion } from "./client.ts";
+import { buildContentGenerationPrompt } from "./prompts.ts";
+import { generatedContentSchema, type GeneratedContent } from "../../schemas/content.ts";
 
-function cleanJsonString(raw: string): string {
+export interface AIContentGenerationResult {
+  content: GeneratedContent;
+  provider: "google-gemini" | "openai-compatible";
+  model: string;
+  fallbackUsed: boolean;
+}
+
+export function cleanJsonString(raw: string): string {
   let cleaned = raw.trim();
 
-  // Strip markdown code block if present
+  // Strip markdown code block fences if present
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "");
     cleaned = cleaned.replace(/\n?```\s*$/, "");
   }
 
-  // Find opening and closing braces
+  // Find outermost opening and closing braces
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
 
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     cleaned = cleaned.slice(firstBrace, lastBrace + 1);
   }
+
+  // Remove trailing commas before closing braces/brackets
+  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
 
   return cleaned.trim();
 }
@@ -28,7 +38,7 @@ export async function generateContentFromAI(
   grade: number,
   subject: string,
   languageName: string = "English"
-): Promise<GeneratedContent> {
+): Promise<AIContentGenerationResult> {
   const messages = buildContentGenerationPrompt(
     topic,
     grade,
@@ -40,33 +50,58 @@ export async function generateContentFromAI(
   const userPrompt = messages.find((m) => m.role === "user")?.content || "";
 
   let rawOutput = "";
+  let resolvedProvider: "google-gemini" | "openai-compatible" = "google-gemini";
+  let resolvedModel = "";
+  let fallbackUsed = false;
 
-  // Prioritize Google Gemini API
+  // 1. Prioritize Google Gemini API if configured
   if (process.env.GEMINI_API_KEY) {
     try {
-      rawOutput = await callGeminiGenerateContent({
+      const geminiRes = await callGeminiGenerateContent({
         prompt: userPrompt,
         systemInstruction,
         temperature: 0.2,
       });
+      rawOutput = geminiRes.text;
+      resolvedProvider = "google-gemini";
+      resolvedModel = geminiRes.model;
     } catch (geminiError) {
-      console.warn("Gemini call failed, checking alternative providers:", geminiError);
+      console.warn(
+        "[AI Orchestrator] Google Gemini provider failed. Checking fallback:",
+        (geminiError as Error).message
+      );
+
+      // Attempt secondary fallback to OpenAI-compatible provider if configured
       if (process.env.AI_API_BASE_URL && process.env.AI_API_KEY) {
-        rawOutput = await createChatCompletion({
-          messages,
-          temperature: 0.2,
-        });
+        try {
+          const openAiRes = await createChatCompletion({
+            messages,
+            temperature: 0.2,
+          });
+          rawOutput = openAiRes.text;
+          resolvedProvider = "openai-compatible";
+          resolvedModel = openAiRes.model;
+          fallbackUsed = true;
+        } catch (secondaryError) {
+          throw new Error(
+            `Primary (Gemini) and Secondary (OpenAI) AI providers failed. Gemini: ${(geminiError as Error).message}. OpenAI: ${(secondaryError as Error).message}`
+          );
+        }
       } else {
         throw geminiError;
       }
     }
   } else if (process.env.AI_API_KEY) {
-    rawOutput = await createChatCompletion({
+    // 2. OpenAI-compatible provider as standalone primary
+    const openAiRes = await createChatCompletion({
       messages,
       temperature: 0.2,
     });
+    rawOutput = openAiRes.text;
+    resolvedProvider = "openai-compatible";
+    resolvedModel = openAiRes.model;
   } else {
-    throw new Error("No AI API key configured.");
+    throw new Error("No AI API credentials configured in environment variables.");
   }
 
   const cleanedJson = cleanJsonString(rawOutput);
@@ -75,17 +110,25 @@ export async function generateContentFromAI(
   try {
     parsed = JSON.parse(cleanedJson);
   } catch (err) {
-    console.error("Failed to parse AI JSON response. Raw output:", rawOutput);
+    console.error("[AI Orchestrator] JSON Parse Failed. Cleaned string was:", cleanedJson.slice(0, 300));
     throw new Error(`AI returned invalid JSON: ${(err as Error).message}`);
   }
 
   const parseResult = generatedContentSchema.safeParse(parsed);
   if (!parseResult.success) {
-    console.error("AI response failed schema validation:", parseResult.error.issues);
+    console.error(
+      "[AI Orchestrator] Schema Validation Error:",
+      parseResult.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
+    );
     throw new Error(
       `AI response failed schema validation: ${parseResult.error.issues[0]?.message}`
     );
   }
 
-  return parseResult.data;
+  return {
+    content: parseResult.data,
+    provider: resolvedProvider,
+    model: resolvedModel,
+    fallbackUsed,
+  };
 }

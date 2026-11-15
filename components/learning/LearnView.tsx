@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -14,6 +14,7 @@ import PrintButton from "@/components/learning/PrintButton";
 import { LanguageCode, UI_TRANSLATIONS, SUPPORTED_LANGUAGES } from "@/lib/constants/languages";
 import { getLocalizedContent } from "@/lib/fixtures/translations";
 import { GeneratedContent } from "@/schemas/content";
+import { ContentMetadata } from "@/app/learn/page";
 
 export interface LearnViewProps {
   initialTopic: string;
@@ -21,6 +22,7 @@ export interface LearnViewProps {
   initialSubject: string;
   initialLanguage?: LanguageCode;
   initialContent?: GeneratedContent;
+  initialMetadata?: ContentMetadata;
 }
 
 export default function LearnView({
@@ -29,6 +31,7 @@ export default function LearnView({
   initialSubject,
   initialLanguage = "en",
   initialContent,
+  initialMetadata,
 }: LearnViewProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageCode>(initialLanguage);
   const [contentByLang, setContentByLang] = useState<Partial<Record<LanguageCode, GeneratedContent>>>(() => {
@@ -37,8 +40,17 @@ export default function LearnView({
     }
     return {};
   });
+
+  const [metadataByLang, setMetadataByLang] = useState<Partial<Record<LanguageCode, ContentMetadata>>>(() => {
+    if (initialMetadata) {
+      return { [initialLanguage]: initialMetadata };
+    }
+    return {};
+  });
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const inFlightRef = useRef<Set<LanguageCode>>(new Set());
 
   const labels = UI_TRANSLATIONS[selectedLanguage] || UI_TRANSLATIONS.en;
 
@@ -47,11 +59,21 @@ export default function LearnView({
     contentByLang[selectedLanguage] ||
     getLocalizedContent(initialTopic, initialGrade, initialSubject, selectedLanguage);
 
-  // If initialContent was not passed from SSR (e.g., SSR timeout or cold start), fetch in client
+  const activeMetadata: ContentMetadata = metadataByLang[selectedLanguage] || {
+    source: "offline-fixture",
+    provider: "local-engine",
+    model: "offline-curriculum",
+    verificationStatus: "schema_validated",
+    fallbackUsed: true,
+  };
+
+  // If initialContent was not passed from SSR, fetch in client
   useEffect(() => {
     let ignore = false;
 
-    if (!initialContent) {
+    if (!initialContent && !inFlightRef.current.has(initialLanguage)) {
+      inFlightRef.current.add(initialLanguage);
+
       fetch("/api/content/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,10 +94,19 @@ export default function LearnView({
               ...prev,
               [initialLanguage]: data.content,
             }));
+            if (data.metadata) {
+              setMetadataByLang((prev) => ({
+                ...prev,
+                [initialLanguage]: data.metadata,
+              }));
+            }
           }
         })
         .catch((err) => {
           console.warn("[LearnView] Initial client fetch error:", err);
+        })
+        .finally(() => {
+          inFlightRef.current.delete(initialLanguage);
         });
     }
 
@@ -86,12 +117,16 @@ export default function LearnView({
 
   const handleLanguageChange = async (newLang: LanguageCode) => {
     setSelectedLanguage(newLang);
+    setErrorMsg("");
 
     // If already generated and cached for this language, no need to re-fetch
     if (contentByLang[newLang]) return;
 
+    // Prevent duplicate in-flight requests for the same language
+    if (inFlightRef.current.has(newLang)) return;
+    inFlightRef.current.add(newLang);
+
     setIsLoading(true);
-    setErrorMsg("");
 
     try {
       const response = await fetch("/api/content/generate", {
@@ -114,40 +149,104 @@ export default function LearnView({
             ...prev,
             [newLang]: data.content,
           }));
+          if (data.metadata) {
+            setMetadataByLang((prev) => ({
+              ...prev,
+              [newLang]: data.metadata,
+            }));
+          }
           return;
         }
       }
 
-      console.warn(`[LearnView] AI API returned non-ok status for ${newLang}`);
+      if (response.status === 429) {
+        setErrorMsg("Notice: Rate limit reached. Showing offline curriculum while reconnecting.");
+      } else {
+        setErrorMsg("Notice: Live translation temporarily unavailable. Displaying offline curriculum.");
+      }
     } catch (err) {
       console.warn(`[LearnView] Error fetching AI content for ${newLang}:`, err);
-      setErrorMsg("Notice: Using offline lesson guide. Reconnecting to AI...");
+      setErrorMsg("Notice: Network connection interrupted. Showing offline curriculum.");
     } finally {
+      inFlightRef.current.delete(newLang);
       setIsLoading(false);
     }
   };
 
+  const handleRetry = () => {
+    handleLanguageChange(selectedLanguage);
+  };
+
   const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === selectedLanguage);
   const currentLangName = currentLangObj ? currentLangObj.name : "English";
+
+  // Verification Badge helper
+  const renderVerificationBadge = () => {
+    const status = activeMetadata.verificationStatus;
+    if (status === "verified") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200"
+          title={activeMetadata.verificationSummary || "Independent deterministic calculations verified."}
+        >
+          <span>✓</span> Math Verified
+        </span>
+      );
+    }
+    if (status === "verification_failed") {
+      return (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-800 border border-red-200"
+          title={activeMetadata.verificationSummary || "A calculation contradiction was detected."}
+        >
+          <span>⚠️</span> Review Recommended
+        </span>
+      );
+    }
+    // schema_validated or not_verified
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700 border border-zinc-200"
+        title={activeMetadata.verificationSummary || "Pedagogical structure and schema validated."}
+      >
+        <span>✓</span> Schema Validated
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col px-5 py-6 sm:px-8">
         <Header />
 
-        {/* Action bar with Back button and Print */}
+        {/* Action bar with Back button and Status Indicators */}
         <div className="my-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-600 transition hover:text-zinc-950"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-600 transition hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg px-1 py-0.5"
           >
             <span>←</span> {labels.backToSearch}
           </Link>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
-              <span className="text-amber-500">✨</span> Gemini AI Active
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Truthful Source Badge */}
+            {activeMetadata.source === "ai-live" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
+                <span className="text-amber-500">✨</span> Live AI (
+                {activeMetadata.provider === "google-gemini"
+                  ? "Gemini"
+                  : "OpenAI-Compatible"}
+                )
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
+                <span>📖</span> Offline Lesson Guide
+              </span>
+            )}
+
+            {/* Truthful Verification Badge */}
+            {renderVerificationBadge()}
+
             <PrintButton label={labels.printWorksheet} />
           </div>
         </div>
@@ -162,23 +261,37 @@ export default function LearnView({
 
         {/* Loading translation banner */}
         {isLoading && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 shadow-sm animate-pulse">
+          <div
+            role="status"
+            aria-live="polite"
+            className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 shadow-sm animate-pulse"
+          >
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
             <div>
               <p className="text-sm font-semibold text-indigo-950">
-                Generating teaching notes in {currentLangName} with Gemini AI...
+                Preparing complete teaching notes in {currentLangName}...
               </p>
               <p className="text-xs text-indigo-700">
-                Crafting in-depth parent explanations, definitions, and practice questions.
+                Translating parent explanations, key definitions, and practice questions.
               </p>
             </div>
           </div>
         )}
 
-        {/* Transient warning notice */}
+        {/* Transient warning notice with Retry */}
         {errorMsg && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            {errorMsg}
+          <div
+            role="alert"
+            className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800"
+          >
+            <span>{errorMsg}</span>
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="font-bold underline hover:text-amber-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500 rounded px-1"
+            >
+              Retry
+            </button>
           </div>
         )}
 

@@ -1,144 +1,99 @@
-# Homework Helper — Test Plan
+# Homework Helper — Automated Test Plan & Results
 
-## 1. Unit Tests
+## 1. Test Architecture
 
-Test:
-- input normalization;
-- Zod schemas;
-- cache-key generation;
-- error mapping;
-- difficulty ordering;
-- math verification functions.
+The application uses Node.js 24's native test runner (`node:test` + `node:assert/strict`) with TypeScript type stripping. This guarantees fast, zero-dependency test execution without brittle babel/jest setups.
 
-## 2. AI Output Tests
-
-Use fixed fixtures representing:
-- valid output;
-- missing field;
-- wrong type;
-- too many/few problems;
-- malformed nested problem;
-- empty explanation;
-- invalid difficulty.
-
-Expected behavior:
-- invalid output is rejected;
-- no malformed content reaches UI.
-
-## 3. Mathematical Verification
-
-Start with a deliberately small supported set.
-
-For each supported type:
-- generate known examples;
-- verify correct answer passes;
-- wrong answer fails;
-- edge cases are covered.
-
-Example categories:
-- integer arithmetic;
-- basic fractions;
-- simple multiplication/division;
-- simple percentage/unit problems where deterministic parsing is safe.
-
-Do not pretend arbitrary natural-language math can be safely verified by a naive JavaScript evaluator.
-
-## 4. Integration Tests
-
-Test:
-
-```text
-POST request
- ↓
-Request validation
- ↓
-Cache lookup
- ↓
-AI mock
- ↓
-Schema validation
- ↓
-Domain validation
- ↓
-Math verification
- ↓
-Response
+Execution command:
+```bash
+npm test
 ```
 
-Mock the LLM provider in automated tests.
+---
 
-## 5. E2E Tests
+## 2. Implemented Test Suites
 
-Using Playwright:
-1. Open home page.
-2. Enter topic.
-3. Select grade.
-4. Generate.
-5. Verify briefing appears.
-6. Verify five problems.
-7. Reveal hint.
-8. Reveal answer.
-9. Trigger an error path.
-10. Test print view.
+### Suite 1: Request Validation & Sanitization (`tests/requests.test.mjs`)
+- **Coverage**: 10 tests
+- **Verifications**:
+  - Valid request normalization (whitespace collapsed, trimmed).
+  - Empty or whitespace-only topic rejection.
+  - Punctuation/symbol-only topic rejection.
+  - Length guard (rejection above 160 characters).
+  - Grade range enforcement (rejection < 1, > 8, or floats; acceptance of string numbers).
+  - Subject enum enforcement (rejection of unapproved subjects).
+  - Language code validation (rejection of unsupported codes like `fr`).
+  - Acceptance of all 6 supported codes (`en`, `hi`, `ta`, `te`, `ml`, `kn`).
+  - Control character sanitization (ASCII 0x00-0x1F stripping).
 
-## 6. Accessibility Tests
+### Suite 2: Educational Content Schema (`tests/content-schema.test.mjs`)
+- **Coverage**: 5 tests
+- **Verifications**:
+  - Complete 5-problem structure with ordered difficulties (`easy`, `easy-medium`, `medium`, `medium-hard`, `challenge`).
+  - Rejection of fewer than 5 practice questions.
+  - Rejection of more than 5 practice questions.
+  - Rejection of missing required pedagogical fields (`parent_summary`, `intuition`, `steps`, `kid_script`).
+  - Flexible normalization of alternative note keys (`definitions`, `rules`, `examples`, `tips`).
 
-Check:
-- keyboard-only flow;
-- labels;
-- focus order;
-- contrast;
-- headings;
-- screen-reader-friendly status messages.
+### Suite 3: Deterministic Mathematics Verification (`tests/math-verifier.test.mjs`)
+- **Coverage**: 4 tests
+- **Verifications**:
+  - Safe arithmetic parsing and order-of-operations evaluation (`+`, `-`, `*`, `/`, `^`, `()`) without `eval()`.
+  - Independent verification of arithmetic, fractions, percentages, and simple linear equations.
+  - Contradiction detection: flags invalid AI calculation (e.g. `8 * 7 = 54`) as `verification_failed`.
+  - Pedagogical integrity: non-math topics (e.g. Photosynthesis) are marked `schema_validated`, not falsely `verified`.
 
-## 7. Security Tests
+### Suite 4: Rate Limiting & Abuse Prevention (`tests/rate-limiter.test.mjs`)
+- **Coverage**: 3 tests
+- **Verifications**:
+  - Threshold allowance (consumes tokens correctly).
+  - Rejection when quota exceeded with positive `retryAfterSeconds`.
+  - Client IP extraction from reverse proxy headers (`x-forwarded-for`, `cf-connecting-ip`, `x-real-ip`).
 
-Check:
-- API key absent from client bundle;
-- rate limiting;
-- oversized input rejection;
-- unauthorized session access;
-- safe rendering of generated text;
-- no raw internal errors.
+### Suite 5: AI JSON Sanitization (`tests/clean-json.test.mjs`)
+- **Coverage**: 3 tests
+- **Verifications**:
+  - Stripping markdown code block fences (```` ```json ````).
+  - Stripping conversational text before and after JSON objects.
+  - Trailing comma removal before closing braces or brackets.
 
-## 8. Manual AI Evaluation
+---
 
-Create a benchmark set across:
-- Grades 1–2
-- Grades 3–5
-- Grades 6–8
-- Mathematics
-- Science
-- English
+## 3. Test Execution Verification
 
-Review:
-- correctness;
-- age appropriateness;
-- clarity;
-- usefulness to parents;
-- practice progression;
-- common mistakes.
+```bash
+> homework-helper@0.1.0 test
+> node --experimental-strip-types --test tests/*.test.mjs
 
-## 9. Real User Test
+✔ JSON Cleaner: Strips markdown code block fences (0.95ms)
+✔ JSON Cleaner: Strips surrounding conversational text (0.17ms)
+✔ JSON Cleaner: Removes trailing commas before closing braces/brackets (0.70ms)
+✔ Content Schema: Valid 5-question curriculum content passes (6.87ms)
+✔ Content Schema: Rejects content with fewer than 5 problems (0.62ms)
+✔ Content Schema: Rejects content with more than 5 problems (0.35ms)
+✔ Content Schema: Rejects missing essential pedagogical fields (0.63ms)
+✔ Content Schema: Normalizes alternative key names in notes (0.85ms)
+✔ Math Evaluator: Safely parses and evaluates arithmetic expressions (1.98ms)
+✔ Math Verifier: Verifies valid arithmetic calculation in practice problem (3.04ms)
+✔ Math Verifier: Flags arithmetic contradiction as verification_failed (0.60ms)
+✔ Math Verifier: Does not falsely claim non-math subjects are mathematically verified (0.24ms)
+✔ Rate Limiter: Allows requests under threshold (1.61ms)
+✔ Rate Limiter: Blocks requests exceeding threshold with retryAfterSeconds (0.36ms)
+✔ Rate Limiter: Extracts IP correctly from headers (21.99ms)
+✔ Request Validation: Valid request passes with normalized data (3.15ms)
+✔ Request Validation: Empty or whitespace-only topic rejected (0.60ms)
+✔ Request Validation: Symbol-only topic rejected (0.56ms)
+✔ Request Validation: Topic exceeding 160 characters rejected (0.28ms)
+✔ Request Validation: Invalid grades rejected (<1, >8, non-integer) (0.28ms)
+✔ Request Validation: Coerces numeric grade string (0.19ms)
+✔ Request Validation: Invalid subject rejected (0.23ms)
+✔ Request Validation: Unsupported language code rejected (0.18ms)
+✔ Request Validation: All 6 supported languages accepted (0.25ms)
+✔ Sanitization: Strips ASCII control characters and collapses whitespace (0.19ms)
 
-Test with 3–5 parents.
-
-Ask:
-- Did you understand the explanation?
-- Could you explain it to your child?
-- Was anything confusing?
-- Were the practice questions useful?
-- What would you change?
-
-Do not collect unnecessary personal information about children.
-
-## 10. Release Gate
-
-MVP is ready when:
-- core E2E flow passes;
-- critical unit tests pass;
-- no known secret exposure exists;
-- math validator tests pass for supported types;
-- mobile flow works;
-- print flow works;
-- real-user feedback has been incorporated.
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ duration_ms 367.83ms
+```
