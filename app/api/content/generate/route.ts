@@ -5,23 +5,40 @@ import { getLocalizedContent } from "@/lib/fixtures/translations";
 import { SUPPORTED_LANGUAGES, LanguageCode } from "@/lib/constants/languages";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 import { verifyEducationalContent } from "@/lib/verification/math-verifier";
+import { createApiErrorResponse } from "@/lib/security/errors";
 
 export const dynamic = "force-dynamic";
 
 const MAX_PAYLOAD_BYTES = 16384; // 16 KB
 
 export async function POST(request: NextRequest) {
-  // 1. Enforce payload size boundary
+  // 1. Enforce payload size boundary (Content-Length header check)
   const contentLength = request.headers.get("content-length");
   if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
-    return NextResponse.json(
-      {
-        error: {
-          code: "PAYLOAD_TOO_LARGE",
-          message: "Request payload exceeds maximum allowed size (16 KB).",
-        },
-      },
-      { status: 413 }
+    return createApiErrorResponse(
+      "PAYLOAD_TOO_LARGE",
+      "Request payload exceeds maximum allowed size (16 KB).",
+      413
+    );
+  }
+
+  // Also enforce byte length check on stream body to prevent chunked bypass
+  let rawText = "";
+  try {
+    rawText = await request.text();
+  } catch {
+    return createApiErrorResponse(
+      "MALFORMED_JSON",
+      "Failed to read request body.",
+      400
+    );
+  }
+
+  if (Buffer.byteLength(rawText, "utf8") > MAX_PAYLOAD_BYTES) {
+    return createApiErrorResponse(
+      "PAYLOAD_TOO_LARGE",
+      "Request payload exceeds maximum allowed size (16 KB).",
+      413
     );
   }
 
@@ -30,17 +47,12 @@ export async function POST(request: NextRequest) {
   const rateLimit = await checkRateLimit(clientIp);
 
   if (!rateLimit.allowed) {
-    return NextResponse.json(
+    return createApiErrorResponse(
+      "RATE_LIMIT_EXCEEDED",
+      "Too many lesson requests from your connection. Please wait a few seconds before trying again.",
+      429,
       {
-        error: {
-          code: "RATE_LIMIT_EXCEEDED",
-          message:
-            "Too many lesson requests from your connection. Please wait a few seconds before trying again.",
-          retryAfter: rateLimit.retryAfterSeconds,
-        },
-      },
-      {
-        status: 429,
+        retryAfter: rateLimit.retryAfterSeconds,
         headers: {
           "Retry-After": String(rateLimit.retryAfterSeconds),
           "X-RateLimit-Limit": String(rateLimit.limit),
@@ -54,16 +66,12 @@ export async function POST(request: NextRequest) {
   // 3. Safe JSON parsing
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(rawText);
   } catch {
-    return NextResponse.json(
-      {
-        error: {
-          code: "MALFORMED_JSON",
-          message: "The request body must be valid, well-formed JSON.",
-        },
-      },
-      { status: 400 }
+    return createApiErrorResponse(
+      "MALFORMED_JSON",
+      "The request body must be valid, well-formed JSON.",
+      400
     );
   }
 
@@ -71,18 +79,16 @@ export async function POST(request: NextRequest) {
   const parseResult = generateContentRequestSchema.safeParse(body);
   if (!parseResult.success) {
     const firstIssue = parseResult.error.issues[0];
-    return NextResponse.json(
+    return createApiErrorResponse(
+      "INVALID_INPUT",
+      firstIssue?.message || "Please provide a valid topic, grade, and subject.",
+      400,
       {
-        error: {
-          code: "INVALID_INPUT",
-          message: firstIssue?.message || "Please provide a valid topic, grade, and subject.",
-          details: parseResult.error.issues.map((i) => ({
-            field: i.path.join("."),
-            issue: i.message,
-          })),
-        },
-      },
-      { status: 400 }
+        details: parseResult.error.issues.map((i) => ({
+          field: i.path.join("."),
+          issue: i.message,
+        })),
+      }
     );
   }
 

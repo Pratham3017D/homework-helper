@@ -54,10 +54,18 @@ export default function LearnView({
 
   const labels = UI_TRANSLATIONS[selectedLanguage] || UI_TRANSLATIONS.en;
 
-  // Active content for current language, fallback to localized fixture if not yet cached
+  // Active content for current language:
+  // If current language is already cached, show it.
+  // If translation is currently in-flight, keep displaying the base English lesson so the parent can keep reading.
+  // Otherwise fallback to localized fixture.
+  const baseEnglishContent = contentByLang["en"] || initialContent;
+  const isTranslating = isLoading && !contentByLang[selectedLanguage];
+
   const content: GeneratedContent =
     contentByLang[selectedLanguage] ||
-    getLocalizedContent(initialTopic, initialGrade, initialSubject, selectedLanguage);
+    (isTranslating && baseEnglishContent
+      ? baseEnglishContent
+      : getLocalizedContent(initialTopic, initialGrade, initialSubject, selectedLanguage));
 
   const activeMetadata: ContentMetadata = metadataByLang[selectedLanguage] || {
     source: "offline-fixture",
@@ -119,7 +127,7 @@ export default function LearnView({
     setSelectedLanguage(newLang);
     setErrorMsg("");
 
-    // If already generated and cached for this language, no need to re-fetch
+    // If already generated or translated for this language, switch immediately (0ms)
     if (contentByLang[newLang]) return;
 
     // Prevent duplicate in-flight requests for the same language
@@ -129,18 +137,40 @@ export default function LearnView({
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/content/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          topic: initialTopic,
-          grade: initialGrade,
-          subject: initialSubject,
-          lang: newLang,
-        }),
-      });
+      // DEDICATED TRANSLATION: If we have an existing English lesson, translate it
+      // instead of regenerating an entirely new curriculum from scratch.
+      const currentLesson = contentByLang["en"] || initialContent;
+
+      let response: Response;
+      if (currentLesson) {
+        response = await fetch("/api/content/translate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: currentLesson,
+            sourceLang: "en",
+            targetLang: newLang,
+            grade: initialGrade,
+            subject: initialSubject,
+          }),
+        });
+      } else {
+        // Fallback: If no base lesson exists yet, call generate
+        response = await fetch("/api/content/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            topic: initialTopic,
+            grade: initialGrade,
+            subject: initialSubject,
+            lang: newLang,
+          }),
+        });
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -159,14 +189,46 @@ export default function LearnView({
         }
       }
 
+      // If translation failed or rate limited, gracefully fall back to localized offline lesson
+      const offlineFallback = getLocalizedContent(
+        initialTopic,
+        initialGrade,
+        initialSubject,
+        newLang
+      );
+      setContentByLang((prev) => ({
+        ...prev,
+        [newLang]: offlineFallback,
+      }));
+      setMetadataByLang((prev) => ({
+        ...prev,
+        [newLang]: {
+          source: "offline-fixture",
+          provider: "local-engine",
+          model: "offline-curriculum",
+          verificationStatus: "schema_validated",
+          fallbackUsed: true,
+        },
+      }));
+
       if (response.status === 429) {
-        setErrorMsg("Notice: Rate limit reached. Showing offline curriculum while reconnecting.");
+        setErrorMsg("Notice: Live AI rate limit reached. Displaying verified offline curriculum.");
       } else {
-        setErrorMsg("Notice: Live translation temporarily unavailable. Displaying offline curriculum.");
+        setErrorMsg("Notice: Live translation temporarily unavailable. Displaying verified offline curriculum.");
       }
     } catch (err) {
-      console.warn(`[LearnView] Error fetching AI content for ${newLang}:`, err);
-      setErrorMsg("Notice: Network connection interrupted. Showing offline curriculum.");
+      console.warn(`[LearnView] Error translating content to ${newLang}:`, err);
+      const offlineFallback = getLocalizedContent(
+        initialTopic,
+        initialGrade,
+        initialSubject,
+        newLang
+      );
+      setContentByLang((prev) => ({
+        ...prev,
+        [newLang]: offlineFallback,
+      }));
+      setErrorMsg("Notice: Connection interrupted. Displaying verified offline curriculum.");
     } finally {
       inFlightRef.current.delete(newLang);
       setIsLoading(false);
@@ -174,6 +236,12 @@ export default function LearnView({
   };
 
   const handleRetry = () => {
+    // Force re-fetch for the current selected language by removing cached copy
+    setContentByLang((prev) => {
+      const next = { ...prev };
+      delete next[selectedLanguage];
+      return next;
+    });
     handleLanguageChange(selectedLanguage);
   };
 
@@ -230,7 +298,11 @@ export default function LearnView({
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Truthful Source Badge */}
-            {activeMetadata.source === "ai-live" ? (
+            {isTranslating ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
+                <span className="h-2 w-2 rounded-full bg-indigo-500 animate-ping" /> Translating to {currentLangName}...
+              </span>
+            ) : activeMetadata.source === "ai-live" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
                 <span className="text-amber-500">✨</span> Live AI (
                 {activeMetadata.provider === "google-gemini"

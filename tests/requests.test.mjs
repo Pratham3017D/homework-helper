@@ -130,3 +130,9 @@ test("Sanitization: Strips ASCII control characters and collapses whitespace", (
   const cleaned = sanitizeInputText(dirty);
   assert.equal(cleaned, "Hello World Test");
 });
+
+test("Sanitization: Strips raw HTML and script tags", () => {
+  const xssAttempt = "<script>alert('xss')</script>Photosynthesis and <b>Plants</b>";
+  const cleaned = sanitizeInputText(xssAttempt);
+  assert.equal(cleaned, "alert('xss')Photosynthesis and Plants");
+});

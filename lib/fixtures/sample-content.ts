@@ -1,4 +1,4 @@
-import { GeneratedContent } from "@/schemas/content";
+import type { GeneratedContent } from "../../schemas/content.ts";
 
 export const SAMPLE_FRACTIONS_CONTENT: GeneratedContent = {
   topic: "Fractions",

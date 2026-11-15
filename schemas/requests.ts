@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SUPPORTED_LANGUAGE_CODES } from "../lib/constants/languages.ts";
+import { generatedContentSchema } from "./content.ts";
 
 export const SUBJECT_OPTIONS = [
   "Mathematics",
@@ -14,12 +15,14 @@ export type SubjectOption = (typeof SUBJECT_OPTIONS)[number];
 /**
  * Sanitizes user text input:
  * - Strips ASCII & Unicode control characters (except standard newlines/tabs)
+ * - Strips raw HTML and script tags to prevent injection attacks
  * - Collapses consecutive whitespace into a single space
  * - Trims leading and trailing whitespace
  */
 export function sanitizeInputText(raw: string): string {
   if (typeof raw !== "string") return "";
   return raw
+    .replace(/<[^>]*>/g, "")
     .replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -64,4 +67,29 @@ export const generateContentRequestSchema = z.object({
 
 export type GenerateContentRequest = z.infer<
   typeof generateContentRequestSchema
+>;
+
+export const translateContentRequestSchema = z.object({
+  content: generatedContentSchema,
+  sourceLang: z
+    .enum(SUPPORTED_LANGUAGE_CODES, {
+      message: "Unsupported source language.",
+    })
+    .default("en"),
+  targetLang: z.enum(SUPPORTED_LANGUAGE_CODES, {
+    message: "Unsupported target language. Supported: en, hi, ta, te, ml, kn.",
+  }),
+  grade: z.coerce
+    .number("Please provide a valid grade.")
+    .int("Grade must be a whole number.")
+    .min(1)
+    .max(8),
+  subject: z
+    .string()
+    .transform((val) => sanitizeInputText(val))
+    .pipe(z.string().min(1).max(50)),
+});
+
+export type TranslateContentRequest = z.infer<
+  typeof translateContentRequestSchema
 >;

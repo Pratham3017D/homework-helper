@@ -1,10 +1,10 @@
-import { GeneratedContent } from "@/schemas/content";
-import { LanguageCode } from "@/lib/constants/languages";
+import type { GeneratedContent } from "../../schemas/content.ts";
+import type { LanguageCode } from "../constants/languages.ts";
 import {
   SAMPLE_FRACTIONS_CONTENT,
   SAMPLE_PHOTOSYNTHESIS_CONTENT,
   SAMPLE_NOUNS_CONTENT,
-} from "./sample-content";
+} from "./sample-content.ts";
 
 // --- RATIONAL AND IRRATIONAL NUMBERS ---
 const RATIONAL_NUMBERS_EN: GeneratedContent = {
@@ -384,6 +384,279 @@ const TRIANGLES_HI: GeneratedContent = {
     "एक खिलौना कार और एक असली कार को देखो! दोनों का आकार बिल्कुल एक जैसा है, बस एक छोटी है और एक बड़ी। समरूप त्रिभुज भी बिल्कुल ऐसे ही होते हैं—एक ही आकार, बस छोटा या बड़ा स्केल! कोने (कोण) बिल्कुल नहीं बदलते, सिर्फ भुजाओं की लंबाई बदलती है।",
 };
 
+// --- COMPARING QUANTITIES (CLASS 7) ---
+const COMPARING_QUANTITIES_EN: GeneratedContent = {
+  topic: "Comparing Quantities: Understanding percentages, converting fractions and decimals into percentages, finding percentages of quantities, profit and loss, and simple interest",
+  grade: 7,
+  subject: "Mathematics",
+  parent_summary:
+    "Comparing Quantities teaches your child how different numbers relate to one another in everyday life using ratios, percentages, profit & loss, and simple interest. It answers practical questions like 'How much discount am I getting?' and 'How much money does a bank investment earn?'",
+  intuition:
+    "Think of 'percent' as literally 'per hundred' (centum = 100). When you score 18 out of 20 on a quiz, what would that score be if the test had 100 marks? Ratios scale things to a standard yardstick of 100 so you can compare any two quantities fairly!",
+  notes: {
+    overview:
+      "In Grade 7 mathematics, Comparing Quantities connects arithmetic to real financial and physical scenarios. The chapter covers: 1) Converting fractions and decimals to percentages and vice versa, 2) Finding percentages of amounts, 3) Calculating Profit and Loss on transactions, and 4) Computing Simple Interest on borrowed or invested money.",
+    key_definitions: [
+      {
+        term: "Percentage (%)",
+        meaning:
+          "A fraction or ratio where the denominator is always 100. For example, 25% = 25/100 = 0.25 = 1/4.",
+      },
+      {
+        term: "Cost Price (CP) & Selling Price (SP)",
+        meaning:
+          "Cost Price is the buying/production price. Selling Price is the sale price. If SP > CP, there is Profit. If CP > SP, there is Loss.",
+      },
+      {
+        term: "Profit & Loss Percentages",
+        meaning:
+          "Profit % = (Profit ÷ CP) × 100. Loss % = (Loss ÷ CP) × 100. Note: Profit and Loss percentages are ALWAYS calculated on Cost Price!",
+      },
+      {
+        term: "Principal (P) & Rate (R)",
+        meaning:
+          "Principal is the initial money borrowed or deposited. Rate is the percentage charged or earned per year (annual rate).",
+      },
+      {
+        term: "Simple Interest (SI) & Amount (A)",
+        meaning:
+          "Interest paid only on original principal: SI = (P × R × T) / 100. The total repayable sum is Amount = Principal + Interest.",
+      },
+    ],
+    core_rules: [
+      "Fraction to Percentage Rule: Multiply the fraction by 100% (e.g., 3/5 × 100 = 60%).",
+      "Decimal to Percentage Rule: Multiply by 100 or shift the decimal point 2 places right (e.g., 0.45 = 45%).",
+      "Percentage of Quantity: (Percentage ÷ 100) × Quantity (e.g., 25% of 200 = (25/100) × 200 = 50).",
+      "Profit & Loss Rule: Profit = SP - CP. Loss = CP - SP. Always divide by CP, never SP, to find percentage.",
+      "Simple Interest Formula: SI = (P × R × T) / 100, where T must be measured in years.",
+    ],
+    real_world_examples: [
+      "Store Discounts: A pair of sneakers originally ₹2,000 has a 20% discount. The discount is ₹400; you pay ₹1,600.",
+      "Sports Win Rates: A cricket team that wins 15 out of 20 matches has a win rate of (15/20) × 100 = 75%.",
+      "Bank Savings: If you put ₹10,000 into a savings bond at 6% annual interest for 3 years, the simple interest is (10000 × 6 × 3) / 100 = ₹1,800.",
+    ],
+    parent_cheat_sheet: [
+      "The 'Per Cent' rule: Remind your child that 'Cent' means 100 (like century or 100 cents in a dollar).",
+      "The CP trap: Children often divide by SP when calculating profit percent. Emphasize: Profit is ALWAYS judged relative to what you originally paid (CP).",
+      "Time in SI: If a problem states time in months (e.g. 6 months), remind them to convert to years: 6/12 = 0.5 years.",
+    ],
+  },
+  steps: [
+    "Step 1: Check what is given (fraction, decimal, percentage, or money values) and what needs to be found.",
+    "Step 2: If converting to percentage, multiply by 100. If converting from percentage, divide by 100.",
+    "Step 3: For Profit or Loss, compute the difference between SP and CP first, then calculate (Difference ÷ CP) × 100.",
+    "Step 4: For Simple Interest, identify P, R, and T (in years) and calculate (P × R × T) / 100.",
+    "Step 5: Check whether the final value makes sense (e.g., selling price after profit must be greater than CP).",
+  ],
+  common_mistakes: [
+    "Calculating Profit % or Loss % on the Selling Price (SP) instead of the Cost Price (CP).",
+    "Forgetting to multiply by 100 when converting fractions to percentages (e.g. writing 3/5 instead of 60%).",
+    "Using time in months directly in the Simple Interest formula without converting to years.",
+    "Confusing the final Amount (P + SI) with the Simple Interest (SI) alone.",
+  ],
+  kid_script:
+    "Imagine you and your friend are comparing your game scores. If you scored 18 out of 20 and your friend scored 42 out of 50, who did better? It's hard to tell at first glance because the totals are different! Percentages are like a magic equalizer that turns both scores into a score out of 100 so you can compare them fairly! Let's see how it works step-by-step.",
+  problems: [
+    {
+      id: "p1",
+      difficulty: "easy",
+      question: "Convert the fraction 3/5 into a percentage.",
+      hint: "To convert any fraction into a percentage, multiply it by 100: (3/5) * 100.",
+      answer: "60%",
+      solution_steps: [
+        "Multiply the fraction by 100: (3/5) * 100.",
+        "Calculate: 3 * 20 = 60%.",
+        "Therefore, 3/5 is equal to 60%.",
+      ],
+    },
+    {
+      id: "p2",
+      difficulty: "easy-medium",
+      question: "Find 25% of 200.",
+      hint: "Write 25% as (25/100) and multiply by 200.",
+      answer: "50",
+      solution_steps: [
+        "Convert 25% to a fraction: 25/100 = 1/4.",
+        "Multiply by 200: (1/4) * 200 = 50.",
+        "25% of 200 is 50.",
+      ],
+    },
+    {
+      id: "p3",
+      difficulty: "medium",
+      question: "A book is bought for Rs 200 and sold for Rs 250. Calculate the profit percentage.",
+      hint: "First find Profit = SP - CP. Then calculate Profit% = (Profit / CP) * 100.",
+      answer: "25%",
+      solution_steps: [
+        "Cost Price (CP) = 200, Selling Price (SP) = 250.",
+        "Profit = SP - CP = 250 - 200 = 50.",
+        "Profit percentage = (Profit / CP) * 100 = (50 / 200) * 100 = 25%.",
+      ],
+    },
+    {
+      id: "p4",
+      difficulty: "medium-hard",
+      question: "Calculate the simple interest on a principal of Rs 1000 at an interest rate of 5% per year for 2 years.",
+      hint: "Use the Simple Interest formula: SI = (P * R * T) / 100.",
+      answer: "Rs 100",
+      solution_steps: [
+        "Identify given values: Principal (P) = 1000, Rate (R) = 5, Time (T) = 2 years.",
+        "Apply formula: SI = (P * R * T) / 100 = (1000 * 5 * 2) / 100.",
+        "Calculate: 1000 * 10 / 100 = 100.",
+        "The simple interest is Rs 100.",
+      ],
+    },
+    {
+      id: "p5",
+      difficulty: "challenge",
+      question: "An item marked at Rs 800 is sold at a 15% discount. What is the final selling price?",
+      hint: "Calculate the discount amount (15% of 800) and subtract it from the marked price.",
+      answer: "Rs 680",
+      solution_steps: [
+        "Find the discount amount: (15 / 100) * 800 = 120.",
+        "Calculate Selling Price: Marked Price - Discount = 800 - 120 = 680.",
+        "The final selling price is Rs 680.",
+      ],
+    },
+  ],
+};
+
+const COMPARING_QUANTITIES_HI: GeneratedContent = {
+  ...COMPARING_QUANTITIES_EN,
+  topic: "राशियों की तुलना: प्रतिशत, लाभ और हानि, तथा साधारण ब्याज (Comparing Quantities)",
+  subject: "गणित (Mathematics)",
+  parent_summary:
+    "राशियों की तुलना (Comparing Quantities) बच्चे को सिखाती है कि दैनिक जीवन में अनुपात, प्रतिशत (Percentages), लाभ-हानि (Profit & Loss) और साधारण ब्याज (Simple Interest) का उपयोग कैसे किया जाता है। यह 'दुकान पर कितनी छूट मिली?' और 'बैंक में पैसे रखने पर कितना ब्याज मिलता है?' जैसे रोजमर्रा के सवालों को हल करता है।",
+  intuition:
+    "'प्रतिशत' शब्द का शाब्दिक अर्थ है 'प्रति सौ' (हर 100 में से कितना)। जब कोई बच्चा 20 में से 18 अंक लाता है, तो 100 में से वह कितना होगा? प्रतिशत सभी संख्याओं को 100 के एक समान पैमाने पर लाकर खड़ा करता है ताकि हम किसी भी दो चीजों की निष्पक्ष तुलना कर सकें!",
+  notes: {
+    overview:
+      "कक्षा 7 गणित में 'राशियों की तुलना' एक अत्यंत महत्वपूर्ण व्यावहारिक अध्याय है। इसमें शामिल हैं: 1) भिन्न और दशमलव को प्रतिशत में बदलना, 2) किसी राशि का प्रतिशत निकालना, 3) क्रय-विक्रय में लाभ और हानि प्रतिशत की गणना, तथा 4) मूलधन पर साधारण ब्याज निकालना।",
+    key_definitions: [
+      {
+        term: "प्रतिशत (Percentage %)",
+        meaning:
+          "वह भिन्न जिसका हर हमेशा 100 होता है। जैसे 25% = 25/100 = 1/4 = 0.25।",
+      },
+      {
+        term: "क्रय मूल्य (CP) और विक्रय मूल्य (SP)",
+        meaning:
+          "क्रय मूल्य (Cost Price) वह मूल्य है जिस पर वस्तु खरीदी गई। विक्रय मूल्य (Selling Price) वह मूल्य है जिस पर वस्तु बेची गई। यदि SP > CP तो लाभ, और CP > SP तो हानि होती है।",
+      },
+      {
+        term: "लाभ एवं हानि प्रतिशत",
+        meaning:
+          "लाभ % = (लाभ ÷ क्रय मूल्य) × 100। हानि % = (हानि ÷ क्रय मूल्य) × 100। ध्यान दें: लाभ और हानि प्रतिशत हमेशा क्रय मूल्य (CP) पर ही निकाले जाते हैं!",
+      },
+      {
+        term: "मूलधन (P) और ब्याज दर (R)",
+        meaning:
+          "मूलधन (Principal) वह प्रारंभिक धनराशि है जो उधार ली या बैंक में जमा की गई। दर (Rate) वार्षिक प्रतिशत ब्याज है।",
+      },
+      {
+        term: "साधारण ब्याज (SI) और मिश्रधन (Amount)",
+        meaning:
+          "साधारण ब्याज = (मूलधन × दर × समय) / 100। मिश्रधन (Amount) = मूलधन + ब्याज।",
+      },
+    ],
+    core_rules: [
+      "भिन्न को प्रतिशत में बदलना: भिन्न को 100% से गुणा करें (जैसे 3/5 × 100 = 60%)।",
+      "दशमलव को प्रतिशत में बदलना: 100 से गुणा करें या दशमलव बिंदु को 2 अंक दाईं ओर खिसकाएं (जैसे 0.45 = 45%)।",
+      "किसी राशि का प्रतिशत: (प्रतिशत ÷ 100) × कुल राशि (जैसे 200 का 25% = (25/100) × 200 = 50)।",
+      "लाभ-हानि नियम: लाभ = SP - CP, हानि = CP - SP। प्रतिशत के लिए हमेशा क्रय मूल्य (CP) से भाग दें।",
+      "साधारण ब्याज का सूत्र: SI = (P × R × T) / 100, जहाँ समय (T) हमेशा वर्षों में होना चाहिए।",
+    ],
+    real_world_examples: [
+      "दुकान पर छूट (Discounts): ₹2,000 के जूते पर 20% छूट का अर्थ है ₹400 की बचत, यानी अंतिम मूल्य ₹1,600।",
+      "परीक्षा परिणाम: 50 में से 45 अंक प्राप्त करने का अर्थ है (45/50) × 100 = 90%।",
+      "बैंक बचत खाता: ₹10,000 की जमा पर 6% वार्षिक दर से 3 साल का साधारण ब्याज ₹1,800 होता है।",
+    ],
+    parent_cheat_sheet: [
+      "बच्चे को याद दिलाएं: 'प्रति-शत' का अर्थ है प्रति 100 में से हिस्सा।",
+      "क्रय मूल्य की सावधानी: बच्चे अक्सर लाभ निकालते समय विक्रय मूल्य से भाग दे देते हैं। उन्हें बताएं कि लाभ हमेशा उस मूल्य पर देखा जाता है जितने में खरीदा था (CP)।",
+      "समय वर्षों में: यदि प्रश्न में महीने दिए हों (जैसे 6 महीने), तो उसे वर्ष में बदलें: 6/12 = 0.5 वर्ष।",
+    ],
+  },
+  steps: [
+    "कदम 1: प्रश्न को ध्यान से पढ़ें और पहचानें कि क्या दिया गया है और क्या निकालना है।",
+    "कदम 2: प्रतिशत में बदलने के लिए 100 से गुणा करें; प्रतिशत हटाने के लिए 100 से भाग दें।",
+    "कदम 3: लाभ या हानि के लिए विक्रय मूल्य और क्रय मूल्य का अंतर निकालें, फिर (अंतर ÷ CP) × 100 करें।",
+    "कदम 4: साधारण ब्याज के लिए मूलधन (P), दर (R) और समय (T) को सूत्र (P × R × T) / 100 में रखें।",
+    "कदम 5: उत्तर की जांच करें कि क्या वह व्यावहारिक दृष्टि से सही लग रहा है।",
+  ],
+  common_mistakes: [
+    "क्रय मूल्य (CP) की जगह विक्रय मूल्य (SP) पर लाभ या हानि प्रतिशत निकालना।",
+    "भिन्न को प्रतिशत में बदलते समय 100 से गुणा करना भूल जाना।",
+    "साधारण ब्याज के सूत्र में महीनों को सीधे रख देना (उन्हें वर्ष में बदले बिना)।",
+    "कुल मिश्रधन (Amount) और ब्याज (Interest) में भ्रमित होना।",
+  ],
+  kid_script:
+    "सोचो तुम और तुम्हारा दोस्त अपने गेम के अंकों की तुलना कर रहे हो। तुमने 20 में से 18 बनाए और तुम्हारे दोस्त ने 50 में से 42। कौन ज्यादा आगे है? ऐसे सीधे बताना मुश्किल है क्योंकि दोनों का कुल स्कोर अलग है! प्रतिशत एक ऐसा जादुई पैमाना है जो दोनों स्कोर्स को '100 में से कितने' में बदल देता है, जिससे तुलना करना बहुत आसान हो जाता है! चलो इसे साथ मिलकर सीखते हैं।",
+  problems: [
+    {
+      id: "p1",
+      difficulty: "easy",
+      question: "भिन्न 3/5 को प्रतिशत में बदलिए।",
+      hint: "किसी भी भिन्न को प्रतिशत में बदलने के लिए उसे 100 से गुणा करें: (3/5) * 100.",
+      answer: "60%",
+      solution_steps: [
+        "भिन्न को 100 से गुणा कीजिए: (3/5) * 100.",
+        "गणना: 3 * 20 = 60%.",
+        "अतः 3/5 का मान 60% के बराबर है।",
+      ],
+    },
+    {
+      id: "p2",
+      difficulty: "easy-medium",
+      question: "200 का 25% ज्ञात कीजिए।",
+      hint: "25% को (25/100) के रूप में लिखें और 200 से गुणा करें।",
+      answer: "50",
+      solution_steps: [
+        "25% को भिन्न में बदलें: 25/100 = 1/4.",
+        "200 से गुणा करें: (1/4) * 200 = 50.",
+        "200 का 25% मान 50 है।",
+      ],
+    },
+    {
+      id: "p3",
+      difficulty: "medium",
+      question: "एक पुस्तक ₹200 में खरीदी गई और ₹250 में बेची गई। लाभ प्रतिशत ज्ञात कीजिए।",
+      hint: "पहले लाभ = SP - CP ज्ञात करें। फिर लाभ% = (लाभ / CP) * 100 सूत्र लगाएं।",
+      answer: "25%",
+      solution_steps: [
+        "क्रय मूल्य (CP) = 200, विक्रय मूल्य (SP) = 250.",
+        "लाभ = SP - CP = 250 - 200 = 50.",
+        "लाभ प्रतिशत = (लाभ / CP) * 100 = (50 / 200) * 100 = 25%.",
+      ],
+    },
+    {
+      id: "p4",
+      difficulty: "medium-hard",
+      question: "₹1000 के मूलधन पर 5% वार्षिक ब्याज दर से 2 वर्ष का साधारण ब्याज ज्ञात कीजिए।",
+      hint: "साधारण ब्याज का सूत्र प्रयोग करें: SI = (P * R * T) / 100.",
+      answer: "Rs 100",
+      solution_steps: [
+        "मान पहचानें: मूलधन (P) = 1000, दर (R) = 5, समय (T) = 2 वर्ष।",
+        "सूत्र लगाएं: SI = (P * R * T) / 100 = (1000 * 5 * 2) / 100.",
+        "गणना करें: 1000 * 10 / 100 = 100.",
+        "साधारण ब्याज ₹100 है।",
+      ],
+    },
+    {
+      id: "p5",
+      difficulty: "challenge",
+      question: "₹800 अंकित मूल्य वाली एक वस्तु पर 15% छूट दी जाती है। वस्तु का अंतिम विक्रय मूल्य क्या होगा?",
+      hint: "पहले छूट की राशि निकालें (800 का 15%) और फिर उसे अंकित मूल्य में से घटाएं।",
+      answer: "Rs 680",
+      solution_steps: [
+        "छूट की राशि: (15 / 100) * 800 = 120.",
+        "विक्रय मूल्य = अंकित मूल्य - छूट = 800 - 120 = 680.",
+        "वस्तु का अंतिम विक्रय मूल्य ₹680 है।",
+      ],
+    },
+  ],
+};
+
 export function getLocalizedContent(
   topic: string,
   grade: number,
@@ -391,6 +664,22 @@ export function getLocalizedContent(
   lang: LanguageCode
 ): GeneratedContent {
   const normalized = topic.toLowerCase().trim();
+
+  // Comparing Quantities (Class 7 Mathematics)
+  if (
+    normalized.includes("comparing") ||
+    normalized.includes("quantities") ||
+    normalized.includes("percentage") ||
+    normalized.includes("profit") ||
+    normalized.includes("simple interest") ||
+    normalized.includes("राशियों की तुलना") ||
+    normalized.includes("प्रतिशत")
+  ) {
+    if (lang === "hi") {
+      return { ...COMPARING_QUANTITIES_HI, grade };
+    }
+    return { ...COMPARING_QUANTITIES_EN, grade, subject: subject || "Mathematics" };
+  }
 
   // Rational and Irrational Numbers
   if (

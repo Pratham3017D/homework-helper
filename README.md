@@ -33,7 +33,7 @@ Rather than simply handing answers to a child, **Homework Helper** empowers the 
 - **💡 Interactive Hint Drawer**: Guides the child forward without spoiling the solution.
 - **✓ Reveal Answer & Detailed Solution**: Complete step-by-step resolution steps for verification.
 
-### 6. 🌐 Real-Time Multilingual Support
+### 6. 🌐 Dedicated Real-Time Multilingual Translation (No Regeneration)
 - Switch languages with a single click right on the results page:
   - **English**
   - **हिन्दी** (Hindi)
@@ -41,21 +41,26 @@ Rather than simply handing answers to a child, **Homework Helper** empowers the 
   - **తెలుగు** (Telugu)
   - **മലയാളം** (Malayalam)
   - **ಕನ್ನಡ** (Kannada)
-- Instantly translates the entire parent briefing, complete teaching notes, teaching script, common mistakes, hints, and practice questions.
+- **Mathematical Preservation Guarantee**: When switching languages, the system translates the existing lesson rather than regenerating a new curriculum from scratch. Practice questions, formulas, equations, numbers, and answer solutions remain 100% mathematically identical.
+- **In-Memory & Edge Caching**: Consecutive language toggles return instantaneously (< 2ms) from server and client caches.
+- **Deduplicated Parallel Requests**: In-flight translation calls are deduplicated so simultaneous clicks never produce duplicate LLM requests.
 
 ### 7. 🖨️ Print-Friendly Worksheet
 - Dedicated print layout (`@media print`) that formats practice problems cleanly for paper or PDF export.
 
 ### 8. 🤖 Resilient Dual-Engine AI Backend
-- **Direct Google Gemini Integration**: Uses Google's Gemini models (`gemini-flash-lite-latest`, `gemini-3.5-flash`, `gemini-3.8-flash`) to dynamically generate customized teaching notes, parent briefings, conversational scripts, common mistakes, and 5 progressive problems for **any homework topic**.
+- **Direct Google Gemini Integration**: Uses Google's Gemini models (`gemini-flash-lite-latest`, `gemini-3.5-flash`) to dynamically generate customized teaching notes, parent briefings, conversational scripts, common mistakes, and 5 progressive problems for **any homework topic**.
+- **Bounded Fail-Fast Architecture**: Eliminates cascading retry freezes. Permanent 429 quota exhaustion is detected immediately, safely falling back to verified curriculum content in milliseconds.
 - **Complete In-Depth Notes**: Generates full study notes for parents: concept breakdowns, key term definitions, core rules/formulas, real-world analogies, and a quick cheat sheet.
-- **Multilingual AI Output**: Dynamically outputs complete notes and questions in English, Hindi, Tamil, Telugu, Malayalam, or Kannada with client-side caching.
+- **Multilingual AI Output**: Dedicated `/api/content/translate` endpoint translates existing lessons into Hindi, Tamil, Telugu, Malayalam, or Kannada while strictly preserving practice questions and numerical calculations.
 - **Zero-Downtime Fallback**: If an external AI provider experiences rate-limiting or network issues, the system automatically falls back to rich built-in curriculum content.
 
 ### 9. 🛡️ API Security & Rate Limiting
-- **Payload Guard**: Enforces 16 KB request body limit (HTTP 413 `PAYLOAD_TOO_LARGE`).
-- **Input Sanitization**: Control characters stripped, whitespace collapsed, topic length and subject verified with Zod 4.
-- **Production Rate Limiting**: 15 requests/minute per client IP via in-memory sliding window with support for Upstash Redis REST.
+- **Dual-Layer Payload Guard**: Enforces 16 KB request body limit on `/api/content/generate` and 32 KB on `/api/content/translate` with stream buffer byte checks (preventing chunked bypass attacks).
+- **Input Sanitization**: Control characters stripped, HTML/script tags removed, whitespace collapsed, topic length and subject verified with Zod 4.
+- **Production Rate Limiting**: 15 requests/minute per client IP via in-memory sliding window, with built-in zero-dependency support for Upstash Redis REST.
+- **Standardized Error Structure**: Returns uniform JSON error objects (`code`, `message`, `details`, `retryAfter`) without exposing internal stack traces or API keys.
+- **HTTP Security Headers**: Strict HSTS, X-Frame-Options (SAMEORIGIN), X-Content-Type-Options (nosniff), Referrer-Policy, and Permissions-Policy configured in `next.config.ts`.
 
 ### 10. 🧮 Independent Mathematics Verification Engine
 - **Deterministic Math Verification**: Independent AST tokenizer and recursive descent parser verifies arithmetic, fractions, percentages, and simple equations without using `eval()`.
@@ -84,8 +89,10 @@ homework-helper/
 ├── app/
 │   ├── api/
 │   │   └── content/
-│   │       └── generate/
-│   │           └── route.ts          # POST endpoint for AI content generation
+│   │       ├── generate/
+│   │       │   └── route.ts          # POST endpoint for full AI curriculum generation
+│   │       └── translate/
+│   │           └── route.ts          # POST dedicated fast translation with math preservation
 │   ├── learn/
 │   │   └── page.tsx                  # Learning result page (Server Component)
 │   ├── globals.css                   # Tailwind v4 themes and typography tokens
@@ -118,14 +125,17 @@ homework-helper/
 ├── lib/
 │   ├── ai/
 │   │   ├── client.ts                 # HTTP client for OpenAI-compatible chat endpoints
-│   │   ├── generate-content.ts       # LLM orchestrator & JSON sanitization
+│   │   ├── gemini.ts                 # Bounded Google Gemini Flash client with quota fail-fast
+│   │   ├── generate-content.ts       # Full curriculum LLM orchestrator & JSON sanitization
+│   │   ├── translate-content.ts      # Dedicated translation engine with math preservation
 │   │   └── prompts.ts                # Structured educational system and user prompts
 │   ├── constants/
 │   │   └── languages.ts              # Supported language codes & localized UI dictionary
 │   ├── fixtures/
 │   │   ├── sample-content.ts         # Base educational lessons (Fractions, Photosynthesis, Nouns)
-│   │   └── translations.ts           # Full multilingual translations (Triangles, Fractions, etc.)
+│   │   └── translations.ts           # Full multilingual translations (Comparing Quantities, Triangles, etc.)
 │   ├── security/
+│   │   ├── errors.ts                 # Standardized safe API error response builder
 │   │   └── rate-limit.ts             # Sliding window in-memory & Upstash Redis rate limiter
 │   └── verification/
 │       └── math-verifier.ts          # Deterministic AST math & equation verification engine
@@ -134,14 +144,17 @@ homework-helper/
 │   ├── content.ts                    # Zod schema for structured lesson content & notes
 │   └── requests.ts                   # Zod schema for input sanitization & validation
 │
-├── tests/                            # Zero-dependency Node 24 native test suite
+├── tests/                            # Zero-dependency Node 24 native test suite (39 tests)
+│   ├── ai-engine.test.mjs            # AI parsing, field validation & error response tests
 │   ├── clean-json.test.mjs           # AI markdown fence & trailing comma tests
 │   ├── content-schema.test.mjs       # 5 progressive problems & difficulty tests
 │   ├── math-verifier.test.mjs        # Deterministic arithmetic & equation tests
 │   ├── rate-limiter.test.mjs         # Sliding window quota & IP extraction tests
-│   └── requests.test.mjs             # Input validation, bounds & sanitization tests
+│   ├── requests.test.mjs             # Input validation, bounds & sanitization tests
+│   └── translation.test.mjs          # Translation preservation, caching & benchmark tests
 │
 ├── docs/                             # Architecture & engineering specs
+│   └── RATE_LIMITING.md              # Distributed rate limiting configuration guide
 ├── .env.example                      # Production template for environment variables
 ├── .env.local                        # Private local API keys (git-ignored)
 └── package.json

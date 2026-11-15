@@ -95,10 +95,12 @@ The JSON format must match this structure exactly:
 }
 
 Rules:
-1. Provide comprehensive notes in the 'notes' field (definitions, rules, real-world examples, and cheat sheet).
-2. "problems" MUST contain exactly 5 items with difficulty: "easy", "easy-medium", "medium", "medium-hard", "challenge".
-3. Ensure mathematical and factual accuracy.
-4. Language: ALL fields (notes, definitions, summaries, steps, scripts, and problems) MUST be written in ${languageName}.`;
+1. AGE & GRADE APPROPRIATENESS: Tailor language, concepts, and difficulty strictly to Grade ${grade}. For Grades 1-4, use concrete visual examples (sharing pizza, counting toys); for Grades 5-8, use clear systematic rules and real-life scenarios (money, sports, science).
+2. COMPREHENSIVE TEACHING NOTES: Provide complete in-depth notes in the 'notes' field (overview, key definitions, core rules, real-world examples, and parent cheat sheet) so parents never have to look elsewhere.
+3. 5 PROGRESSIVE PROBLEMS: "problems" MUST contain exactly 5 items strictly ordered by difficulty: "easy", "easy-medium", "medium", "medium-hard", "challenge".
+4. SCAFFOLDED HINTS: Hints must guide and prompt the child's thinking (e.g. "What do we do first?") without prematurely giving away the numeric answer.
+5. MATHEMATICAL & FACTUAL INTEGRITY: Ensure calculations, formulas, units, and solutions are 100% correct.
+6. LANGUAGE: ALL user-facing fields (notes, definitions, summaries, steps, scripts, and problems) MUST be written in ${languageName}.`;
 
   const userPrompt = `Generate complete parent teaching notes, explanation guide, and 5 practice problems for:
 Topic: ${topic}

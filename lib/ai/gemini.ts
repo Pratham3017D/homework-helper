@@ -16,12 +16,29 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Checks whether a 429 response represents an unrecoverable quota exhaustion
+ * (e.g. daily limit exceeded or large retryDelay) vs a transient burst limit.
+ */
+function isQuotaExhausted(status: number, bodyText: string): boolean {
+  if (status !== 429) return false;
+  const lower = bodyText.toLowerCase();
+  return (
+    lower.includes("resource_exhausted") ||
+    lower.includes("limit: 0") ||
+    lower.includes("daily limit") ||
+    lower.includes("per day") ||
+    lower.includes("retry in 2") || // hours/days retry
+    lower.includes("retrydelay")
+  );
+}
+
 export async function callGeminiGenerateContent({
-  model = process.env.AI_MODEL || "gemini-flash-lite-latest",
+  model = process.env.AI_TRANSLATION_MODEL || process.env.AI_MODEL || "gemini-flash-lite-latest",
   systemInstruction,
   prompt,
   temperature = 0.2,
-  timeoutMs = 15000,
+  timeoutMs = 16000,
 }: GeminiOptions): Promise<GeminiResult> {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.AI_API_KEY || "").trim();
 
@@ -29,23 +46,14 @@ export async function callGeminiGenerateContent({
     throw new Error("GEMINI_API_KEY is not configured in environment variables.");
   }
 
-  // Model fallback chain:
-  // 1. User-configured model
-  // 2. gemini-flash-lite-latest (fastest & high availability)
-  // 3. gemini-3.5-flash (high quality flash model)
-  // 4. gemini-3.8-flash (latest flash model)
-  // 5. gemini-flash-latest (canonical alias)
-  // 6. gemini-pro-latest (pro fallback)
-  const candidateModels = [
-    model,
-    "gemini-flash-lite-latest",
-    "gemini-3.5-flash",
-    "gemini-3.8-flash",
-    "gemini-flash-latest",
-    "gemini-pro-latest",
-  ];
-
+  // Use a strictly bounded model chain:
+  // 1. Configured/Primary flash model
+  // 2. Single fast fallback flash model (gemini-3.5-flash)
+  // NEVER include heavy pro models (gemini-pro-latest) which are quota-blocked on free tier.
+  const fallbackModel = "gemini-3.5-flash";
+  const candidateModels = model === fallbackModel ? [model] : [model, fallbackModel];
   const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
+
   let lastError: Error | null = null;
 
   for (const candidate of uniqueModels) {
@@ -70,7 +78,7 @@ export async function callGeminiGenerateContent({
       };
     }
 
-    // Try up to 2 attempts for transient errors (429, 503)
+    // Attempt native endpoint (at most 1 retry for transient network/503 errors)
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         const response = await fetch(url, {
@@ -96,80 +104,54 @@ export async function callGeminiGenerateContent({
           }
         }
 
-        // Fatal auth errors - do not continue looping through models
+        const errBody = await response.text();
+
+        // 1. Fatal authentication errors: throw immediately
         if (response.status === 401 || response.status === 403) {
-          const errBody = await response.text();
-          throw new Error(`Gemini Authentication Failed [${response.status}]: Invalid API key. Details: ${errBody}`);
+          throw new Error(`Gemini Authentication Failed [${response.status}]: Invalid API key.`);
         }
 
-        // Transient errors: 429 (rate limit) or 503 (high demand)
+        // 2. Fatal quota exhaustion (daily free-tier limit hit): Fail immediately!
+        // Do NOT retry and do NOT loop through other models sharing the same quota.
+        if (isQuotaExhausted(response.status, errBody)) {
+          throw new Error(
+            `Gemini Quota Exhausted [429]: Project free-tier quota exceeded. Details: ${errBody.slice(0, 300)}`
+          );
+        }
+
+        // 3. Transient rate limit or 503 high demand: retry once with short backoff
         if (response.status === 429 || response.status === 503) {
-          const errorText = await response.text();
-          lastError = new Error(`Gemini transient error [${response.status}]: ${errorText}`);
+          lastError = new Error(`Gemini transient error [${response.status}]: ${errBody.slice(0, 200)}`);
           if (attempt === 1) {
-            await delay(600);
-            continue; // retry once with backoff
+            await delay(400);
+            continue;
           }
-          break; // move to next candidate model
+          break; // move to next model if transient error persisted
         }
 
-        // 404 Model Not Found or other 4xx: Move immediately to next model
-        const errorText = await response.text();
-        lastError = new Error(`Gemini native [${response.status}]: ${errorText}`);
+        // 4. Model not found (404): Break to next model immediately without retry
+        lastError = new Error(`Gemini native [${response.status}]: ${errBody.slice(0, 200)}`);
         break;
       } catch (err) {
         lastError = err as Error;
 
-        // If it was an authentication failure, re-throw immediately
-        if (lastError.message.includes("Gemini Authentication Failed")) {
+        // If it was an auth failure or quota exhaustion, re-throw immediately to stop wasting time
+        if (
+          lastError.message.includes("Gemini Authentication Failed") ||
+          lastError.message.includes("Gemini Quota Exhausted")
+        ) {
           throw lastError;
         }
 
-        // Network or timeout: backoff on first attempt, then try next candidate
+        // Transient network abort: retry once
         if (attempt === 1) {
-          await delay(400);
+          await delay(300);
           continue;
         }
         break;
       }
     }
-
-    // Secondary fallback: Google OpenAI-compatible chat completions endpoint
-    try {
-      const openAiUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-      const openAiRes = await fetch(openAiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        signal: AbortSignal.timeout(timeoutMs),
-        body: JSON.stringify({
-          model: candidate,
-          messages: [
-            ...(systemInstruction ? [{ role: "system", content: systemInstruction }] : []),
-            { role: "user", content: prompt },
-          ],
-          response_format: { type: "json_object" },
-          temperature,
-        }),
-      });
-
-      if (openAiRes.ok) {
-        const openAiData = await openAiRes.json();
-        const openAiText = openAiData.choices?.[0]?.message?.content;
-        if (openAiText) {
-          return {
-            text: openAiText,
-            model: candidate,
-            provider: "google-gemini",
-          };
-        }
-      }
-    } catch {
-      // Ignore and continue down the model candidate chain
-    }
   }
 
-  throw lastError || new Error("All Gemini models and endpoints failed to generate content.");
+  throw lastError || new Error("All Gemini models failed to generate content.");
 }

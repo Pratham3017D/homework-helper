@@ -258,6 +258,15 @@ function verifyArithmeticProblem(
     return null;
   }
 
+  // If question asks about percentages, or answer is a percentage while candidate expression is not,
+  // let percentage verifier handle it
+  if (
+    problem.answer.includes("%") ||
+    /percent|percentage|प्रतिशत/i.test(q)
+  ) {
+    return null;
+  }
+
   // Pattern: "What is 15 + 27?", "Calculate 12 * 8", "Evaluate (10 - 4) * 5"
   const mathExprMatch = q.match(
     /(?:what\s+is|calculate|evaluate|solve|compute|find\s+the\s+value\s+of)?\s*([0-9\s()+\-*\/^.×÷]{3,40})/i
@@ -298,11 +307,59 @@ function verifyPercentageProblem(
 ): ProblemVerificationResult | null {
   const q = problem.question;
 
-  // Pattern: "What is 20% of 150?", "Find 15% of 80"
-  const pctMatch = q.match(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/i);
+  // 1. Fraction-to-percentage pattern: "Convert 3/5 into a percentage" or "भिन्न 3/5 को प्रतिशत में बदलिए"
+  if (/percent|percentage|प्रतिशत/i.test(q)) {
+    const fracMatch = q.match(/(\d+)\s*\/\s*(\d+)/);
+    if (fracMatch) {
+      const num = Number(fracMatch[1]);
+      const den = Number(fracMatch[2]);
+      if (den > 0) {
+        const expected = (num / den) * 100;
+        const extracted = extractNumberFromAnswer(problem.answer);
+        if (extracted !== null) {
+          const isMatch = Math.abs(expected - extracted) < 1e-4;
+          return {
+            problemId: problem.id,
+            difficulty: problem.difficulty,
+            status: isMatch ? "verified" : "verification_failed",
+            detectedType: "percentage",
+            expression: `(${num}/${den}) * 100%`,
+            expectedAnswer: `${expected}%`,
+            extractedAnswer: `${extracted}%`,
+            details: isMatch
+              ? `Independent calculation confirmed: ${num}/${den} = ${expected}%`
+              : `Percentage mismatch: expected ${expected}%, but answer states ${extracted}%`,
+          };
+        }
+      }
+    }
+  }
+
+  // 2. Quantity percentage: "20% of 150", "Find 15% of 80", "200 का 25%"
+  // English pattern: X% of Y
+  let pctMatch = q.match(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/i);
+  let pct = 0;
+  let base = 0;
+
   if (pctMatch) {
-    const pct = Number(pctMatch[1]);
-    const base = Number(pctMatch[2]);
+    pct = Number(pctMatch[1]);
+    base = Number(pctMatch[2]);
+  } else {
+    // Hindi pattern: Y का X% or X% का Y
+    const hindiMatch1 = q.match(/(\d+(?:\.\d+)?)\s*का\s*(\d+(?:\.\d+)?)\s*%/);
+    const hindiMatch2 = q.match(/(\d+(?:\.\d+)?)\s*%\s*का\s*(\d+(?:\.\d+)?)/);
+    if (hindiMatch1) {
+      base = Number(hindiMatch1[1]);
+      pct = Number(hindiMatch1[2]);
+      pctMatch = hindiMatch1;
+    } else if (hindiMatch2) {
+      pct = Number(hindiMatch2[1]);
+      base = Number(hindiMatch2[2]);
+      pctMatch = hindiMatch2;
+    }
+  }
+
+  if (pctMatch && base > 0) {
     const expected = (pct * base) / 100;
     const extracted = extractNumberFromAnswer(problem.answer);
 
